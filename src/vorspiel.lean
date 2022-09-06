@@ -1,4 +1,4 @@
-import tactic data.vector data.vector3 data.vector.zip 
+import tactic data.vector data.vector3 data.vector.zip init.data.nat.basic init.data.nat.div
 
 universes u v
 
@@ -103,3 +103,21 @@ end power_le
 
 end relation
 
+namespace list
+
+notation `𝔹` := list bool
+
+variables {α : Type*} {β : Type*}
+
+lemma join_to_chunks {l : list (list α)} {n : ℕ} (hn : n ≠ 0) (hl : ∀ x ∈ l, length x = n) : l.join.to_chunks n = l :=
+begin
+  induction l with x l IH; simp,
+  have : n = x.length, from (hl x (by simp)).symm,
+  rcases this with rfl,
+  calc to_chunks x.length (x ++ l.join) = x :: to_chunks x.length l.join
+  : by simpa using list.to_chunks_eq_cons hn (by { show x ++ l.join ≠ nil, simp, rintros rfl, exfalso, simpa using hn })
+                                    ... = x :: l
+  : by rw show to_chunks x.length l.join = l, from IH (λ y hy, hl y (by simp[hy])),
+end
+
+end list
