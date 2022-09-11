@@ -140,12 +140,12 @@ lemma encode_bit {b n} (h : bit b n ≠ 0) : ⸤bit b n⸥ = b :: ⸤n⸥ := to_
 
 @[simp] lemma encode_1 : ⸤(1 : ℕ)⸥ = [tt] := to_dibit_bit_1
 
-lemma dibit_length : ∀ n, ∥n∥ ≤ log 2 n + 1 :=
-binary_rec (by { simp[lencodable.length] })
+lemma dibit_length : ∀ n, n ≠ 0 → ∥n∥ = log 2 n + 1 :=
+binary_rec (by simp)
 (λ b n h, by {
   by_cases hn : n = 0; simp[lencodable.length, hn] at h ⊢,
   { rcases b; simp },
-  { simp [show bit b n ≠ 0, by rcases b; simp[bit, hn], encode_bit],
+  { intros nezero, simp [encode_bit nezero],
     have : log 2 n + 1 = log 2 (bit b n),
       calc log 2 n + 1 = log 2 (bit b n / 2) + 1
         : by rw (show bit b n / 2 = n, by simpa[nat.div2_val] using div2_bit b n)

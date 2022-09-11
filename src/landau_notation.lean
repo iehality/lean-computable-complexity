@@ -47,7 +47,6 @@ infix ` ≃Θ `:60 := bigΘ
 namespace bigO
 variables {f g h : ℕ → ℕ}
 
-
 @[refl, simp] protected lemma refl : f ≤ᴼ f :=
 ⟨1, one_ne_zero, 0, λ m _, by simp⟩
 
@@ -135,7 +134,6 @@ instance : has_add quo :=
           refine add_le_add
             ((h₁ m hm₁).trans (nat.mul_le_mul_right _ (by simp)))
             ((h₂ m hm₂).trans (nat.mul_le_mul_right _ (by simp))) } })⟩
-
 
 instance : has_mul quo :=
 ⟨λ q₁ q₂, bigΘ.lift_on₂ q₁ q₂ (λ f g, O[f * g])
@@ -250,9 +248,8 @@ by { simp[one_def, of_le_of], refine ⟨1, by simp, 2, λ m hm, _⟩,
 
 @[simp] lemma log_le_poly1 : log ≤ poly 1 :=
 by { simp[of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩,
-     simp, 
      have : m < 2 ^ m ↔ nat.log 2 m < m, from nat.lt_pow_iff_log_lt (by simp) (nat.succ_le_iff.mp hm),
-     refine le_of_lt (this.mp _),
+     simp, refine le_of_lt (this.mp _),
      exact nat.lt_two_pow m }
 
 @[simp] lemma log_le_poly {n} (h : n ≠ 0) : log ≤ poly n :=
@@ -265,9 +262,8 @@ by { show O[f + c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
 
 @[simp] lemma lambda_smul {c : ℕ} (h : c ≠ 0) : O[λ x, c * f x] = O[f] := smul_eq f h
 
-example : O[λ x, 3 * x^9 + 23 * nat.log 2 x + 17] = poly 9 := by simp
+example : O[λ x, 3 * x^9 + 12 * x^4 + 23 * nat.log 2 x + 17] = poly 9 := by simp
 
 end bigΘ
-
 
 end landau_notation
