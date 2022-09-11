@@ -63,12 +63,8 @@ end
 
 @[simp] lemma zero_le : 0 ≤ᴼ f := ⟨1, by simp, by simp⟩
 
-lemma smul_iff {k : ℕ} (hk : k ≠ 0) : (k • f : ℕ → ℕ) ≤ᴼ g ↔ f ≤ᴼ g :=
-⟨by { rintros ⟨c, cne0, n, h⟩, refine ⟨c, cne0, n, λ m lem, _⟩,
-      calc f m ≤ k * f m : nat.le_mul_of_pos_left (pos_iff_ne_zero.mpr hk)
-           ... ≤ c * g m : h m lem },
- by { rintros ⟨c, hc, n, h⟩, simp at h,
-      refine ⟨k * c, by simp[hk, hc], n, λ m lem, by simp[mul_assoc]; refine nat.mul_le_mul_left _ (h m lem)⟩ }⟩
+lemma of_beq (n : ℕ) (h : ∀ m ≥ n, f m = g m) : f ≃Θ g :=
+⟨⟨1, by simp, n, λ m hm, by simp[h m hm]⟩, ⟨1, by simp, n, λ m hm, by simp[h m hm]⟩⟩ 
 
 end bigO
 
@@ -109,6 +105,8 @@ quotient.lift_on₂' q₁ q₂ F h
   bigΘ.lift_on₂ O[f] O[g] F h = F f g := rfl
 
 lemma of_eq_of {f g : ℕ → ℕ} : O[f] = O[g] ↔ f ≃Θ g := quotient.eq'
+
+lemma of_eq {f g : ℕ → ℕ} (h : f = g) : O[f] = O[g] := by rw h
 
 lemma nat_fun_maximum (f : ℕ → ℕ) (n : ℕ) : ∃ m, ∀ n' < n, f n' ≤ m :=
 by { induction n with n IH,
@@ -248,15 +246,31 @@ by { simp[one_def, of_le_of], refine ⟨1, by simp, 2, λ m hm, _⟩,
 
 @[simp] lemma log_le_poly1 : log ≤ poly 1 :=
 by { simp[of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩,
-     have : m < 2 ^ m ↔ nat.log 2 m < m, from nat.lt_pow_iff_log_lt (by simp) (nat.succ_le_iff.mp hm),
+     have : m < 2^m ↔ nat.log 2 m < m, from nat.lt_pow_iff_log_lt (by simp) (nat.succ_le_iff.mp hm),
      simp, refine le_of_lt (this.mp _),
      exact nat.lt_two_pow m }
 
 @[simp] lemma log_le_poly {n} (h : n ≠ 0) : log ≤ poly n :=
 log_le_poly1.trans (poly_le_of_le (nat.one_le_iff_ne_zero.mpr h))
 
-@[simp] lemma lambda_add : O[λ x, f x + g x] = O[f] + O[g] := (of_add_of f g).symm
+@[simp] lemma poly_mul (m n : ℕ) : poly n * poly m = poly (n + m) :=
+by { rw ←of_mul_of, refine of_eq (funext $ λ x, _), simp[pow_add] }
 
+instance : add_monoid quo := { 
+  add := (+),
+  zero := 0,
+  add_assoc := λ q₁ q₂ q₃, by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    induction q₃ using landau_notation.bigΘ.ind_on with h,
+    simp[←of_add_of], refine of_eq _, exact add_assoc f g h },
+  zero_add := λ q, by {
+    
+  }
+ }
+
+@[simp] lemma lambda_add : O[λ x, f x + g x] = O[f] + O[g] := (of_add_of f g).symm
+/--/
 @[simp] lemma lambda_add_const {c : ℕ} (h : c ≠ 0) : O[λ x, f x + c] = O[f] + 1 :=
 by { show O[f + c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
 
