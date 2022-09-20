@@ -61,15 +61,40 @@ class lfin (Γ : Type*) (α : Type*) extends lencodable Γ α :=
 (entropy_ne_zero : entropy ≠ 0)
 (length : ∀ a : α, lencodable.length Γ a = entropy)
 
+abbreviation bfin := lfin bool
+
+abbreviation bentropy := lfin.entropy bool
+
 attribute [simp] lfin.length lfin.entropy_ne_zero
 
 namespace lfin
 variables {Γ : Type*} {α : Type*} [lfin Γ α]
+
 @[simp] lemma length' : ∀ a : α, (lencodable.encode Γ a).length = lfin.entropy Γ α := lfin.length 
 
 @[simp] lemma length_encode : list.length ∘ (lencodable.encode Γ : α → list Γ) = (λ _, lfin.entropy Γ α) := funext (by simp)
 
+variables (Γ α)
+
+def entropy' := (entropy Γ α).pred
+
+@[simp] lemma entropy_lt_zero : 0 < entropy Γ α := pos_iff_ne_zero.mpr entropy_ne_zero
+
+@[simp] lemma entropy'_succ_eq_entropy : (entropy' Γ α).succ = entropy Γ α :=
+nat.succ_pred_eq_of_pos (by simp)
+
+@[simp] lemma entropy'_lt : entropy' Γ α < entropy Γ α := by rw[←entropy'_succ_eq_entropy]; exact lt_add_one _
+
+variables {α}
+
+def encode' : α → vector Γ (entropy Γ α) := λ a, ⟨lencodable.encode Γ a, by simp⟩
+
+lemma encode'_nth (a : α) (n) : (encode' Γ a).nth n = (lencodable.encode Γ a).nth_le n (by simp; exact n.property) :=
+vector.nth_eq_nth_le _ _
+
 end lfin
+
+abbreviation bentropy' := lfin.entropy' bool
 
 namespace lencodable
 open lfin
