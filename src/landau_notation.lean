@@ -175,6 +175,11 @@ of_eq_of.mpr ⟨⟨c, h, 0, by simp⟩, by { refine ⟨1, by simp, 0, λ m _, by
 
 variables {f g}
 
+lemma add_symm (q₁ q₂ : quo) : q₁ + q₂ = q₂ + q₁ :=
+by{ induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    simp[←of_add_of], refine of_eq (add_comm f g) }
+
 @[simp] lemma add_eq_of_le {q₁ q₂ : quo} (h : q₂ ≤ q₁) : q₁ + q₂ = q₁ :=
 begin
   induction q₁ using landau_notation.bigΘ.ind_on with f,
@@ -185,6 +190,9 @@ begin
   { refine ⟨1 + c, by simp, n, λ m hm, _⟩, simp[two_mul, add_mul], exact h m hm },
   { refine ⟨1, by simp, 0, λ _, by simp⟩ }
 end
+
+@[simp] lemma add_eq_of_le' {q₁ q₂ : quo} (h : q₁ ≤ q₂) : q₁ + q₂ = q₂ :=
+by { rw add_symm, refine add_eq_of_le h }
 
 instance : has_zero quo := ⟨O[0]⟩
 
@@ -241,7 +249,7 @@ by simp[of_le_of]; refine ⟨1, by simp, 1, λ x hx, by simpa using pow_mono hx 
 @[simp] lemma one_le_poly {n} : 1 ≤ poly n := by rw ←poly0; exact poly_le_of_le (by simp)
 
 @[simp] lemma one_le_log : 1 ≤ log :=
-by { simp[one_def, of_le_of], refine ⟨1, by simp, 2, λ m hm, _⟩, 
+by { simp[one_def, of_le_of], refine ⟨1, by simp, 2, λ m hm, _⟩,
      rw[show nat.log 2 m = _ + 1, from @nat.log_of_one_lt_of_le 2 m (by simp) hm], simp }
 
 @[simp] lemma log_le_poly1 : log ≤ poly 1 :=
@@ -256,21 +264,8 @@ log_le_poly1.trans (poly_le_of_le (nat.one_le_iff_ne_zero.mpr h))
 @[simp] lemma poly_mul (m n : ℕ) : poly n * poly m = poly (n + m) :=
 by { rw ←of_mul_of, refine of_eq (funext $ λ x, _), simp[pow_add] }
 
-instance : add_monoid quo := { 
-  add := (+),
-  zero := 0,
-  add_assoc := λ q₁ q₂ q₃, by { 
-    induction q₁ using landau_notation.bigΘ.ind_on with f,
-    induction q₂ using landau_notation.bigΘ.ind_on with g,
-    induction q₃ using landau_notation.bigΘ.ind_on with h,
-    simp[←of_add_of], refine of_eq _, exact add_assoc f g h },
-  zero_add := λ q, by {
-    
-  }
- }
-
 @[simp] lemma lambda_add : O[λ x, f x + g x] = O[f] + O[g] := (of_add_of f g).symm
-/--/
+
 @[simp] lemma lambda_add_const {c : ℕ} (h : c ≠ 0) : O[λ x, f x + c] = O[f] + 1 :=
 by { show O[f + c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
 
