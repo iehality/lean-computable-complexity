@@ -28,6 +28,54 @@ by { induction l with a l IH generalizing i j, { simp },
 lemma reverse_nth_le (l : list α) {i j hi hj} (h : i + j + 1 = l.length) : l.reverse.nth_le i hi = l.nth_le j hj :=
 option.some_inj.mp (by { rw [←list.nth_le_nth, ←list.nth_le_nth], exact reverse_nth l h })
 
+section sup
+variables [linear_order α] [order_bot α]
+
+@[simp] def sup : list α → α
+| []        := ⊥
+| (a :: as) := a ⊔ as.sup
+
+lemma sup_mem : ∀ {l : list α}, l ≠ [] → l.sup ∈ l
+| [] h := by contradiction
+| (a :: as) h := by { simp, by_cases C : as = nil,
+  { rcases C with rfl, simp },
+  { have ih : as.sup ∈ as, from sup_mem C,
+    have : as.sup ≤ a ∨ a ≤ as.sup, from le_total (sup as) a,
+    rcases this with (le | le),
+    { exact or.inl le },
+    { have : a ⊔ as.sup = as.sup, from sup_eq_right.mpr le,
+      exact or.inr (by simpa[this] using ih) } } }
+
+lemma le_sup_of_mem : ∀ {l : list α} {x}, x ∈ l → x ≤ l.sup
+| []        x h := by exfalso; simpa using h
+| (a :: as) x h := by { simp at h ⊢, rcases h with (rfl | h), { simp }, { simp[le_sup_of_mem h] } }
+
+end sup
+
+section inf
+variables [linear_order α] [order_top α]
+
+@[simp] def inf : list α → α
+| []        := ⊤
+| (a :: as) := a ⊓ as.inf
+
+lemma inf_mem : ∀ {l : list α}, l ≠ [] → l.inf ∈ l
+| [] h := by contradiction
+| (a :: as) h := by { simp, by_cases C : as = nil,
+  { rcases C with rfl, simp },
+  { have ih : as.inf ∈ as, from inf_mem C,
+    have : as.inf ≤ a ∨ a ≤ as.inf, from le_total _ _,
+    rcases this with (le | le),
+    { have : a ⊓ as.inf = as.inf, from inf_eq_right.mpr le,
+      exact or.inr (by simpa[this] using ih) },
+    { simp[le] } } }
+
+lemma inf_le_of_mem : ∀ {l : list α} {x}, x ∈ l → l.inf ≤ x
+| []        x h := by exfalso; simpa using h
+| (a :: as) x h := by { simp at h ⊢, rcases h with (rfl | h), { simp }, { simp[inf_le_of_mem h] } }
+
+end inf
+
 end list
 
 namespace vector
@@ -114,8 +162,17 @@ variables [decidable_eq α] {n : ℕ} (s : fin n → α)
 
 def of_fn : finset α := (list.of_fn s).to_finset
 
-@[simp] lemma of_fun_card : (of_fn s).card ≤ n :=
+@[simp] lemma of_fn_card : (of_fn s).card ≤ n :=
 by simpa[of_fn] using list.to_finset_card_le (list.of_fn s)
+
+@[simp] lemma mem_of_fn {i} : s i ∈ of_fn s :=
+by { simp[of_fn], 
+     rw[show s i = (list.of_fn s).nth_le i _, from (list.nth_le_of_fn s i).symm],
+     exact (list.of_fn s).nth_le_mem _ _ }
+
+lemma mem_of_fn_iff {x} : x ∈ of_fn s ↔ ∃ i, s i = x :=
+⟨by { simp[of_fn, list.mem_iff_nth_le], rintros i h rfl, refine ⟨⟨i, h⟩, rfl⟩ },
+ by { rintros ⟨i, rfl⟩, exact mem_of_fn s }⟩
 
 end
 
@@ -232,5 +289,3 @@ lemma subset_Union₃ {f : Π i j, κ i j → set α} (i : ι₁) (j : ι₂) (k
 @le_supr₃ _ _ _ _ _ f i j k
 
 end set
-
-
