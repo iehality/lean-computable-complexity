@@ -1,10 +1,20 @@
-import tactic data.vector data.vector3 data.vector.zip init.data.nat.basic init.data.nat.div
+import
+  tactic
+  data.vector
+  data.vector3
+  data.vector.zip
+  init.data.nat.basic
+  init.data.nat.div
+  data.fintype.card
 
 universes u v
+
+open_locale big_operators
 
 namespace list
 
 notation `𝔹` := list bool
+notation `𝕓` := vector bool
 
 variables {α : Type*} {β : Type*}
 
@@ -50,6 +60,9 @@ lemma le_sup_of_mem : ∀ {l : list α} {x}, x ∈ l → x ≤ l.sup
 | []        x h := by exfalso; simpa using h
 | (a :: as) x h := by { simp at h ⊢, rcases h with (rfl | h), { simp }, { simp[le_sup_of_mem h] } }
 
+@[simp] lemma nth_le_le_sup {l : list α} {i} {h} : l.nth_le i h ≤ l.sup :=
+le_sup_of_mem (nth_le_mem l i h)
+
 end sup
 
 section inf
@@ -73,6 +86,9 @@ lemma inf_mem : ∀ {l : list α}, l ≠ [] → l.inf ∈ l
 lemma inf_le_of_mem : ∀ {l : list α} {x}, x ∈ l → l.inf ≤ x
 | []        x h := by exfalso; simpa using h
 | (a :: as) x h := by { simp at h ⊢, rcases h with (rfl | h), { simp }, { simp[inf_le_of_mem h] } }
+
+@[simp] lemma nth_le_le_inf {l : list α} {i} {h} : l.inf ≤ l.nth_le i h :=
+inf_le_of_mem (nth_le_mem l i h)
 
 end inf
 
@@ -132,6 +148,33 @@ end rep
 lemma reverse_nth {n} (v : vector α n) {i j : fin n} (h : ↑i + ↑j + 1 = n) : v.reverse.nth i = v.nth j :=
 by { rcases v with ⟨v, hv⟩, simp[reverse, nth], refine v.reverse_nth_le (by simp[hv, h]) }
 
+@[simp] lemma nth_append {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : fin n₁} {h} :
+  (v₁.append v₂).nth ⟨i, h⟩ = v₁.nth i :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; refine list.nth_le_append _ _
+
+example (a b c : ℕ) : a + b - a = b := add_tsub_cancel_left a b
+
+@[simp] lemma nth_append_right {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : fin n₂} {h} :
+  (v₁.append v₂).nth ⟨n₁ + i, h⟩ = v₂.nth i :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; by { simp[append, nth],
+  simpa[add_tsub_cancel_left] using @list.nth_le_append_right _ l₁ l₂ (l₁.length + i) le_self_add (by simp) }
+
+section sup
+variables [linear_order α] [order_bot α]
+
+@[simp] lemma nth_le_le_sup {n} {v : vector α n} {i} : v.nth i ≤ v.to_list.sup :=
+list.le_sup_of_mem (by { rw nth_eq_nth_le, exact list.nth_le_mem _ _ _ })
+
+end sup
+
+section inf
+variables [linear_order α] [order_top α]
+
+@[simp] lemma nth_le_le_inf {n} {v : vector α n} {i} : v.to_list.inf ≤ v.nth i :=
+list.inf_le_of_mem (by { rw nth_eq_nth_le, exact list.nth_le_mem _ _ _ })
+
+end inf
+
 end vector
 
 namespace fin
@@ -185,9 +228,19 @@ lemma mem_cod_iff {x} : x ∈ cod s ↔ ∃ i, s i = x := by simp[cod]
 
 @[simp] lemma codomain_mem_cod {x} : s x ∈ cod s := by simp[cod]
 
-lemma cod_card : (cod s).card ≤ fintype.card ι := by { simp[cod], sorry }
+lemma cod_card : (cod s).card ≤ fintype.card ι :=
+  calc
+    (image s univ).card ≤ univ.card      : finset.card_image_le
+                    ... = fintype.card ι : card_univ
 
-end 
+end
+
+section
+variables {α} [semilattice_inf α] [order_top α]
+  {β : Type*} [decidable_eq β] [semilattice_inf β] [order_top β] {γ : Type*} {s : finset γ} {f : γ → β} {g : β → α}
+
+end
+
 end finset
 
 namespace relation
