@@ -12,37 +12,46 @@ inductive gate : ℕ → ℕ → Type
 
 namespace gate
 
-@[simp] def map : Π {n n' m m' : ℕ} (f : fin n → fin n') (g : fin m → fin m'), gate n m → gate n' m'
-| _ _ _ _ f g (atom i) := atom (f i)
-| _ _ _ _ f g (ctn j)  := ctn (g j)
-| _ _ _ _ f g (not j)  := not (g j)
-| _ _ _ _ f g (and s)  := and (s.image g)
-| _ _ _ _ f g (or s)   := or (s.image g)
+@[simp] def map {n n' m m' : ℕ} (f : fin n → fin n') (g : fin m → fin m') : gate n m → gate n' m'
+| (atom i) := atom (f i)
+| (ctn j)  := ctn (g j)
+| (not j)  := not (g j)
+| (and s)  := and (s.image g)
+| (or s)   := or (s.image g)
 
 def shift {n n' m m' : ℕ} (hn : n ≤ n') (hm : m ≤ m') (g : gate n m) : gate n' m' :=
 g.map (λ i, ⟨i, lt_of_lt_of_le i.property hn⟩) (λ j, ⟨j, lt_of_lt_of_le j.property hm⟩)
 
-@[simp] def lift : Π {n m} (k), gate n m → gate k (n + m)
-| _ _ _ (atom i) := ctn ⟨i, nat.lt_add_right _ _ _ i.property⟩
-| n _ _ (ctn j)  := ctn ⟨n + j, by simpa using j.property⟩
-| n _ _ (not j)  := not ⟨n + j, by simpa using j.property⟩
-| n _ _ (and s)  := and (s.image (λ j, ⟨n + j, by simpa using j.property⟩))
-| n _ _ (or s)   := or (s.image (λ j, ⟨n + j, by simpa using j.property⟩))
+@[simp] def lift {n m} (k) : gate n m → gate k (n + m)
+| (atom i) := ctn ⟨i, nat.lt_add_right _ _ _ i.property⟩
+| (ctn j)  := ctn ⟨n + j, by simp⟩
+| (not j)  := not ⟨n + j, by simp⟩
+| (and s)  := and (s.image (λ j, ⟨n + j, by simp⟩))
+| (or s)   := or (s.image (λ j, ⟨n + j, by simp⟩))
 
-@[simp] def val : Π {n m}, gate n m → 𝕓 n → 𝕓 m → bool
-| _ _ (atom i) v w := v.nth i
-| _ _ (ctn j)  v w := w.nth j
-| _ _ (not j)  v w := bnot (w.nth j)
-| _ _ (and s)  v w := s.inf w.nth
-| _ _ (or s)   v w := s.sup w.nth
+@[simp] def val {n m} : gate n m → 𝕓 n → 𝕓 m → bool
+| (atom i) v w := v.nth i
+| (ctn j)  v w := w.nth j
+| (not j)  v w := bnot (w.nth j)
+| (and s)  v w := s.inf w.nth
+| (or s)   v w := s.sup w.nth
 
-lemma lift_val : ∀ {n m k : ℕ} (g : gate n m) (v : 𝕓 n) (w : 𝕓 m) (u : 𝕓 k),
-  (g.lift k).val u (v.append w) = g.val v w
-| _ _ _ (atom i) v w u := by simp
-| _ _ _ (ctn j)  v w u := by simp
-| _ _ _ (not j)  v w u := by simp
-| _ _ _ (and s)  v w u := by simp[finset.inf_image]; refine congr_arg _ (by ext; simp)
-| _ _ _ (or s)   v w u := by simp[finset.sup_image]; refine congr_arg _ (by ext; simp)
+
+lemma map_val {n n' m m' : ℕ} (f₁ : fin n → fin n') (f₂ : fin m → fin m') (v : 𝕓 n') (w : 𝕓 m') :
+  Π (g : gate n m), (g.map f₁ f₂).val v w = g.val (vector.of_fn (λ i, v.nth (f₁ i))) (vector.of_fn (λ i, w.nth (f₂ i)))
+| (atom i) := by simp
+| (ctn j)  := by simp
+| (not j)  := by simp
+| (and s)  := by simp[finset.inf_image]; refine congr_arg _ (by ext; simp)
+| (or s)   := by simp[finset.sup_image]; refine congr_arg _ (by ext; simp)
+
+lemma lift_val_append {k n m : ℕ} (u : 𝕓 k) (v : 𝕓 n) (w : 𝕓 m) :
+  Π (g : gate n m), (g.lift k).val u (v.append w) = g.val v w
+| (atom i) := by simp
+| (ctn j)  := by simp
+| (not j)  := by simp
+| (and s)  := by simp[finset.inf_image]; refine congr_arg _ (by ext; simp)
+| (or s)   := by simp[finset.sup_image]; refine congr_arg _ (by ext; simp)
 
 inductive bounded (b : ℕ) : ∀ {n m}, gate n m → Prop
 | atom : ∀ {n m : ℕ} (i : fin n), bounded (@atom n m i)
@@ -99,18 +108,34 @@ def eval : Π {n m}, circuit n m → 𝕓 n → 𝕓 m
 | _ _ (cons (and s) c)  := let ih := depth_vec c in (s.sup ih.nth + 1) ::ᵥ ih
 | _ _ (cons (or s) c)   := let ih := depth_vec c in (s.sup ih.nth + 1) ::ᵥ ih
 
+@[simp] lemma depth_vec_cons {n m} (g : gate n m) (c : circuit n m) : (depth_vec (cons g c)).tail = depth_vec c
+
+
 def depth {n m} (c : circuit n m) : ℕ := (depth_vec c).to_list.sup
 
-def comp : Π {n m k}, circuit n m → circuit m k → circuit n (m + k)
+@[simp] def comp : Π {n m k}, circuit n m → circuit m k → circuit n (m + k)
 | _ _ _ c₁ (nil n)     := c₁
 | n m k c₁ (cons g c₂) := cons (g.lift n) (c₁.comp c₂)
 
 lemma cons_depth {n m} (g : gate n m) (c : circuit n m) : (cons g c).depth ≤ c.depth + 1 :=
 by rcases g; simp[depth]
 
+lemma cons_depth_vec {n m} (c₁ : circuit n m) : Π (g : gate n m) (l : fin m),
+  (c₁.cons g).depth_vec.nth l = c₁.depth_vec.nth l
+| (atom i) l := by { simp, }
+
+
+lemma comp_depth_vec : ∀ {n m k} (c₁ : circuit n m) (c₂ : circuit m k) {l₁ : fin (m + k)} {l₂ : fin m} (h : (l₁ : ℕ) = l₂),
+  (c₁.comp c₂).depth_vec.nth l₁ = c₁.depth_vec.nth l₂
+| _ _ _ c₁ (nil n)            l₁ l₂ h := by simp[fin.ext h]
+| _ _ _ c₁ (cons (atom i) c₂) l₁ l₂ h := by {
+    simp[],
+    rcases fin.eq_zero_or_eq_succ l₁ with (rfl | h),
+    { simp, have := comp_depth_vec c₁ c₂, } }
+
 lemma comp_depth : ∀ {n m k} (c₁ : circuit n m) (c₂ : circuit m k), (c₁.comp c₂).depth ≤ c₁.depth + c₂.depth
 | _ _ _ c₁ (nil n) := by simp[comp]
-| n _ _ (c₁ : circuit n m) (@cons m k g c₂) := by { simp[comp], sorry }
+| n _ _ c₁ (cons (atom i) c₂) := by { simp[comp, depth], have := comp_depth c₁ c₂, sorry }
 
 end circuit
 
