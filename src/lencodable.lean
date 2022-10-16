@@ -1,4 +1,4 @@
-import vorspiel
+import vorspiel binary_recursion
 
 universes u v
 
@@ -141,10 +141,6 @@ def inv : 𝔹 → ℕ
 | [] := 0
 | (b :: d) := bit b (inv d)
 
-@[simp] lemma bit_ff_two_mul (n : ℕ) : bit ff n = 2 * n := bit0_eq_two_mul n
-
-@[simp] lemma bit_tt_two_mul_add_one (n : ℕ) : bit tt n = 2 * n + 1 := by simpa[bit, bit1] using bit0_eq_two_mul n
-
 lemma inv_length_le : ∀ d : 𝔹, inv d + 1 ≤ 2^d.length
 | [] := by simp[inv]
 | (b :: d) := by { simp[inv],
@@ -176,21 +172,9 @@ end
 binary_rec (by simp[dibit, inv])
 (λ b n h, by { by_cases hn : bit b n = 0; simp[hn, inv, h] })
 
-lemma dibit_length : ∀ n, n ≠ 0 → (dibit n).length = log 2 n + 1 :=
-binary_rec (by simp)
-(λ b n h, by {
-  by_cases hn : n = 0; simp[lencodable.length, hn] at h ⊢,
-  { rcases b; simp },
-  { intros nezero, simp [dibit_bit nezero],
-    have : log 2 n + 1 = log 2 (bit b n),
-      calc log 2 n + 1 = log 2 (bit b n / 2) + 1
-        : by rw (show bit b n / 2 = n, by simpa[nat.div2_val] using div2_bit b n)
-                   ... = log 2 (bit b n)
-        : by { symmetry, refine nat.log_of_one_lt_of_le (by simp) (by rcases b; simp[bit, one_le_iff_ne_zero.mpr hn]) },
-    simpa[this] using h } }) 
-
-@[simp] lemma dibit_length_le (n) : (dibit n).length ≤ log 2 n + 1 :=
-by by_cases C : n = 0; simp[C, dibit_length]
+@[simp] lemma dibit_length : ∀ n, (dibit n).length = Log n :=
+binary_rec (by simp) (λ b n IH, by { 
+  by_cases C : bit b n = 0; simp[C, dibit_bit, Log_bit, IH] })
 
 example (n : ℕ) : bit1 n = 2* n + 1 := bit1_val n
 
@@ -237,7 +221,7 @@ def log2 : ℕ → ℕ := log 2
 
 @[simp] lemma encode_1 : encode bool (1 : ℕ) = [tt] := dibit.dibit_1
 
-lemma dibit_length : ∀ n, n ≠ 0 → length bool n = log 2 n + 1 := dibit.dibit_length
+lemma dibit_length : ∀ n, length bool n = Log n := dibit.dibit_length
 
 end nat
 
@@ -245,28 +229,18 @@ namespace fin
 open nat nat.dibit
 variables {n : ℕ}
 
-def bencode (i : fin n) : 𝕓 (log 2 n + 1) := 
-lift (dibit i) (by {
-  calc
-    (dibit i).length ≤ log 2 i + 1 : dibit_length_le i
-                 ... ≤ log 2 n + 1: by simp; exact log_monotone (le_of_lt i.property) })
+def bencode (i : fin n) : 𝕓 (Log n) := lift (dibit i) (by simpa using Log_monotone (le_of_lt i.property))
 
-def bdecode (d : 𝕓 (log 2 n + 1)) : option (fin n) := 
+def bdecode (d : 𝕓 (Log n)) : option (fin n) := 
 if h : inv d.val < n then some ⟨inv d.val, h⟩ else none
 
-#eval dibit 0
-#eval dibit 1
-#eval dibit 2
-#eval dibit 3
-#eval log 2 3 + 1
-
 instance : bencodable (fin n) :=
-{ entropy := log 2 n + 1,
+{ entropy := Log n,
   encode := bencode,
   decode := bdecode,
   encodek := λ ⟨i, h⟩, by simp[bencode, bdecode, dibit.lift, h] }
 
-@[simp] lemma entropy_eq : ∥fin n∥ = log 2 n + 1 := rfl
+@[simp] lemma entropy_eq : ∥fin n∥ = Log n := rfl
 
 end fin
 
@@ -276,8 +250,6 @@ variables (α : Type*) [fintype α]
 
 noncomputable def of_fin : bencodable α := of_equiv (fintype.equiv_fin α)
 
-lemma of_fin_entropy_eq : (of_fin α : bencodable α).entropy = log 2 (fintype.card α) + 1 := rfl
-
-
+lemma of_fin_entropy_eq : (of_fin α : bencodable α).entropy = Log (fintype.card α) := rfl
 
 end vencodable
