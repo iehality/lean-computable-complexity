@@ -90,6 +90,10 @@ lemma inf_le_of_mem : ∀ {l : list α} {x}, x ∈ l → l.inf ≤ x
 @[simp] lemma nth_le_le_inf {l : list α} {i} {h} : l.inf ≤ l.nth_le i h :=
 inf_le_of_mem (nth_le_mem l i h)
 
+@[simp] lemma append_inf : ∀ l₁ l₂ : list α, (l₁ ++ l₂).inf = l₁.inf ⊓ l₂.inf
+| []        l₂ := by simp
+| (a :: l₁) l₂ := by simp[append_inf l₁ l₂, inf_assoc]
+
 end inf
 
 end list
@@ -148,6 +152,8 @@ end rep
 lemma reverse_nth {n} (v : vector α n) {i j : fin n} (h : ↑i + ↑j + 1 = n) : v.reverse.nth i = v.nth j :=
 by { rcases v with ⟨v, hv⟩, simp[reverse, nth], refine v.reverse_nth_le (by simp[hv, h]) }
 
+section append
+/-
 @[simp] lemma nth_append {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : fin n₁} {h} :
   (v₁.append v₂).nth ⟨i, h⟩ = v₁.nth i :=
 by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; refine list.nth_le_append _ _
@@ -158,6 +164,46 @@ example (a b c : ℕ) : a + b - a = b := add_tsub_cancel_left a b
   (v₁.append v₂).nth ⟨n₁ + i, h⟩ = v₂.nth i :=
 by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; by { simp[append, nth],
   simpa[add_tsub_cancel_left] using @list.nth_le_append_right _ l₁ l₂ (l₁.length + i) le_self_add (by simp) }
+-/
+
+@[simp] lemma nth_append_of_lt {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : ℕ} {h} (hi : i < n₁) :
+  (v₁.append v₂).nth ⟨i, h⟩ = v₁.nth ⟨i, hi⟩ :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; refine list.nth_le_append _ _
+
+@[simp] lemma nth_append_of_ge {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : ℕ} {h} (hi : i ≥ n₁) :
+  (v₁.append v₂).nth ⟨i, h⟩ = v₂.nth ⟨i - n₁, by omega⟩ :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩;
+{ simp[nth], refine list.nth_le_append_right hi (by simpa using h) }
+
+end append
+
+section append'
+
+@[simp] def append' {n m : nat} : vector α n → vector α m → vector α (m + n)
+| ⟨l₁, h₁⟩ ⟨l₂, h₂⟩ := ⟨ l₁ ++ l₂, by simp[h₁, h₂, add_comm]⟩
+-- 以下の帰納法が使えるようなappendの改良版
+
+infixl ` ++ᵥ `:60 := append'
+
+@[simp] lemma append'_nil : ∀ (v₁ : vector α 0) {n} (v₂ : vector α n), v₁ ++ᵥ v₂ = v₂
+| ⟨[], _⟩ _ ⟨l, h⟩ := by simp[(++ᵥ)]
+
+@[simp] lemma append'_cons : ∀ {n m} (a : α) (v₁ : vector α n) (v₂ : vector α m), (a ::ᵥ v₁) ++ᵥ v₂ = a ::ᵥ (v₁ ++ᵥ v₂)
+| _ _ a ⟨l₁, h₁⟩ ⟨l₂, h₂⟩ := by simp[cons, (++ᵥ)]
+
+lemma to_list_append' : ∀ {n m} (v : vector α n) (w : vector α m), (v ++ᵥ w).to_list = (v.append w).to_list
+| _ _ ⟨l₁, h₁⟩ ⟨l₂, h₂⟩ := by simp
+
+@[simp] lemma nth_append'_of_lt {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : ℕ} {h} (hi : i < n₁) :
+  (v₁ ++ᵥ v₂).nth ⟨i, h⟩ = v₁.nth ⟨i, hi⟩ :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩; refine list.nth_le_append _ _
+
+@[simp] lemma nth_append'_of_ge {n₁ n₂} {v₁ : vector α n₁} {v₂ : vector α n₂} {i : ℕ} {h} (hi : i ≥ n₁) :
+  (v₁ ++ᵥ v₂).nth ⟨i, h⟩ = v₂.nth ⟨i - n₁, by omega⟩ :=
+by rcases v₁ with ⟨l₁, rfl⟩; rcases v₂ with ⟨l₂, rfl⟩;
+{ simp[nth], refine list.nth_le_append_right hi (by simpa[add_comm] using h) }
+
+end append'
 
 section sup
 variables [linear_order α] [order_bot α]
@@ -170,10 +216,78 @@ end sup
 section inf
 variables [linear_order α] [order_top α]
 
-@[simp] lemma nth_le_le_inf {n} {v : vector α n} {i} : v.to_list.inf ≤ v.nth i :=
+def inf {n} (v : vector α n) := v.to_list.inf
+
+@[simp] lemma nth_le_le_inf {n} (v : vector α n) (i) : v.inf ≤ v.nth i :=
 list.inf_le_of_mem (by { rw nth_eq_nth_le, exact list.nth_le_mem _ _ _ })
 
+@[simp] lemma zero_inf : ∀ (v : vector α 0), v.inf = ⊤
+| ⟨[], _⟩ := by simp[inf]
+
+@[simp] lemma one_inf : ∀ (v : vector α 1), v.inf = v.head
+| ⟨[a], _⟩ := by simp[inf]
+
+@[simp] lemma two_inf : ∀ (v : vector α 2), v.inf = v.head ⊓ v.nth 1
+| ⟨[a, b], _⟩ := by simp[inf, head, nth]
+
+@[simp] lemma succ_inf (a : α) {n} (v : vector α n) : (a ::ᵥ v).inf = a ⊓ v.inf :=
+by simp[inf]
+
+@[simp] lemma inf_append {n m} (v : vector α n) (w : vector α m) : (v ++ᵥ w).inf = v.inf ⊓ w.inf :=
+by rcases v; rcases w; simp[append, inf]
+
 end inf
+
+section 
+variables {α} {n : ℕ}
+
+instance : has_coe α (vector α n) := ⟨λ a, repeat a _⟩
+
+@[simp] lemma coe_val (a : α) : (a : vector α n).to_list = list.repeat a n := rfl
+
+@[simp] lemma coe_head (a : α) : (a : vector α n.succ).head = a := by unfold_coes; simp[repeat, head]
+
+@[simp] lemma coe_nth (a : α) (i) : (a : vector α n).nth i = a := by unfold_coes; simp[nth]
+
+@[simp] lemma coe_ext (h : n ≠ 0) (a b : α) : (a : vector α n) = b ↔ a = b :=
+⟨λ h, by {
+  rcases n, { contradiction },
+  { have : (a : vector α n.succ).nth 0 = (b : vector α n.succ).nth 0, from congr_fun (congr_arg nth h) 0,
+    simpa using this } },
+  congr_arg coe ⟩
+
+@[simp] lemma coe_head_one : ∀ (v : vector α 1), ↑(v.head) = v
+| ⟨[a], _⟩ := by simp[head]; refl
+
+lemma coe_succ (n : ℕ) (a : α) : (a : vector α n.succ) = a ::ᵥ a :=
+by unfold_coes; simp[repeat, cons]
+
+end
+
+lemma one_eq : ∀ (v : vector α 1), v.nth 0 ::ᵥ nil = v
+| ⟨[a], h⟩         := by simp[head]; refl
+
+lemma two_eq : ∀ (v : vector α 2), v.nth 0 ::ᵥ v.nth 1 ::ᵥ nil = v
+| ⟨[a, b], h⟩           := by simpa using h
+
+def half_even {n} (v : vector α (bit0 n)) : vector α n × vector α n :=
+have le_bit0 : n ≤ bit0 n, { rw[bit0_eq_two_mul], linarith },
+(of_fn (λ i, v.nth ⟨i, gt_of_ge_of_gt le_bit0 i.property⟩),
+ of_fn (λ i, v.nth ⟨n + i, by simp[bit0]⟩))
+
+lemma append'_half_even {n} (v : vector α (bit0 n)) : (v.half_even).1 ++ᵥ (v.half_even).2 = v :=
+by { ext ⟨i, h⟩, rcases v with ⟨v, hv⟩, 
+     have : i < n ∨ n ≤ i, from lt_or_ge i n,
+     rcases this with (lt | le),
+     { simp[lt, half_even], refl }, { simp[le, half_even], refl } }
+
+def half_odd {n} (v : vector α (bit1 n)) : α × vector α n × vector α n := (v.head, v.tail.half_even)
+
+lemma append'_half_odd {n} (v : vector α (bit1 n)) : 
+  v.half_odd.1 ::ᵥ (v.half_odd).2.1 ++ᵥ (v.half_odd).2.2 = v := by simp[half_odd, append'_half_even]
+
+@[simp] lemma nth_one {n : ℕ} (a b : α) (v : vector α n) : (a ::ᵥ b ::ᵥ v).nth 1 = b :=
+by rcases v; simp[cons, nth]
 
 end vector
 
@@ -342,3 +456,11 @@ lemma subset_Union₃ {f : Π i j, κ i j → set α} (i : ι₁) (j : ι₂) (k
 @le_supr₃ _ _ _ _ _ f i j k
 
 end set
+
+namespace nat
+
+@[simp] lemma bit_ff_two_mul (n : ℕ) : bit ff n = 2 * n := bit0_eq_two_mul n
+
+@[simp] lemma bit_tt_two_mul_add_one (n : ℕ) : bit tt n = 2 * n + 1 := by simpa[bit, bit1] using bit0_eq_two_mul n
+
+end nat
