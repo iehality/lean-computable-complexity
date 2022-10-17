@@ -1,4 +1,4 @@
-import vorspiel boolean_logic binary_recursion
+import vorspiel landau_notation boolean_logic binary_recursion
 
 universes u v
 
@@ -167,6 +167,18 @@ def conj : circuit 2 1 := and {0, 1}
 
 end conj
 
+section disj 
+
+def disj : circuit 2 1 := or {0, 1}
+
+@[simp] lemma disj_size : (disj : circuit 2 1).size = 1 := by simp[disj]
+
+@[simp] lemma disj_depth : (disj : circuit 2 1).depth = 1 := by simp[disj]
+
+@[simp] lemma disj_eval (v) : (disj : circuit 2 1).eval v = v.sup := by simp[disj]
+
+end disj
+
 section relay'
 
 def relay' : circuit 1 1 := relay 0
@@ -219,7 +231,7 @@ nat.binary_recursion_bit0_eq h
 lemma bounded_and_bit1 (n) : bounded_and (bit1 n) = (relay' |+| (bounded_and n |+| bounded_and n) ▷ conj) ▷ conj:=
 nat.binary_recursion_bit1_eq n
 
-lemma bounden_and_eval : ∀ n (v : 𝕓 n), (bounded_and n).eval v = v.inf := 
+lemma bounded_and_eval : ∀ n (v : 𝕓 n), (bounded_and n).eval v = v.inf := 
 nat.binary_recursion (by simp[bounded_and])
   (λ n hn IH v, by { 
     rw ←vector.append'_half_even v,
@@ -228,12 +240,66 @@ nat.binary_recursion (by simp[bounded_and])
     rw [←vector.append'_half_odd v, bounded_and_bit1 n],
     simp[bounded_and_bit1, IH] })
 
-lemma bounded_and_size : ∀ n, (bounded_and n).size ≤ n - 1 :=
-nat.binary_recursion (by { simp[bounded_and], })
-  (λ n h IH, by { simp[bounded_and_bit0 h], sorry })
-  (λ n IH, by { simp[bounded_and_bit1 n], })
+open landau_notation
+
+lemma bounded_and_size : O[λ n, (bounded_and n).size] ≤ bigΘ.poly 1 :=
+le_poly1_of_binary_rec _ 2 (λ b n, by {
+  rcases b,
+  { by_cases hn : n = 0,
+    { rw[hn, show nat.bit ff 0 = 0, by simp[nat.bit_ff]], simp[bounded_and], omega },
+    { rw[show nat.bit ff n = bit0 n, by refl, bounded_and_bit0 hn], simp[two_mul] } },
+  { rw[show nat.bit tt n = bit1 n, by refl, bounded_and_bit1], simp[two_mul] } })
+
+lemma bounded_and_depth : O[λ n, (bounded_and n).depth] ≤ bigΘ.Log :=
+le_Log_of_binary_rec _ 2 (λ b n, by {
+  rcases b,
+  { by_cases hn : n = 0,
+    { rw[hn, show nat.bit ff 0 = 0, by simp[nat.bit_ff]], simp[bounded_and] },
+    { rw[show nat.bit ff n = bit0 n, by refl, bounded_and_bit0 hn], simp } },
+  { rw[show nat.bit tt n = bit1 n, by refl, bounded_and_bit1], simp } })
 
 end bounded_and
+
+section bounded_or
+
+def bounded_or : Π n, circuit n 1 := nat.binary_recursion ⊥
+  (λ n hn c, (c |+| c) ▷ disj)
+  (λ n c, (relay' |+| (c |+| c) ▷ disj) ▷ disj)
+
+lemma bounded_or_bit0 {n : ℕ} (h : n ≠ 0) : bounded_or (bit0 n) = (bounded_or n |+| bounded_or n) ▷ disj :=
+nat.binary_recursion_bit0_eq h
+
+lemma bounded_or_bit1 (n) : bounded_or (bit1 n) = (relay' |+| (bounded_or n |+| bounded_or n) ▷ disj) ▷ disj:=
+nat.binary_recursion_bit1_eq n
+
+lemma bounded_or_eval : ∀ n (v : 𝕓 n), (bounded_or n).eval v = v.sup := 
+nat.binary_recursion (by simp[bounded_or])
+  (λ n hn IH v, by { 
+    rw ←vector.append'_half_even v,
+    simp[bounded_or_bit0 hn, IH, vector.coe_succ] })
+  (λ n IH v, by { 
+    rw [←vector.append'_half_odd v, bounded_or_bit1 n],
+    simp[bounded_or_bit1, IH] })
+
+open landau_notation
+
+lemma bounded_or_size : O[λ n, (bounded_or n).size] ≤ bigΘ.poly 1 :=
+le_poly1_of_binary_rec _ 2 (λ b n, by {
+  rcases b,
+  { by_cases hn : n = 0,
+    { rw[hn, show nat.bit ff 0 = 0, by simp[nat.bit_ff]], simp[bounded_or], omega },
+    { rw[show nat.bit ff n = bit0 n, by refl, bounded_or_bit0 hn], simp[two_mul] } },
+  { rw[show nat.bit tt n = bit1 n, by refl, bounded_or_bit1], simp[two_mul] } })
+
+lemma bounded_or_depth : O[λ n, (bounded_or n).depth] ≤ bigΘ.Log :=
+le_Log_of_binary_rec _ 2 (λ b n, by {
+  rcases b,
+  { by_cases hn : n = 0,
+    { rw[hn, show nat.bit ff 0 = 0, by simp[nat.bit_ff]], simp[bounded_or] },
+    { rw[show nat.bit ff n = bit0 n, by refl, bounded_or_bit0 hn], simp } },
+  { rw[show nat.bit tt n = bit1 n, by refl, bounded_or_bit1], simp } })
+
+end bounded_or
 
 end gate
 
