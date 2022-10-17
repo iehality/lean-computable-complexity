@@ -63,6 +63,10 @@ lemma le_sup_of_mem : ∀ {l : list α} {x}, x ∈ l → x ≤ l.sup
 @[simp] lemma nth_le_le_sup {l : list α} {i} {h} : l.nth_le i h ≤ l.sup :=
 le_sup_of_mem (nth_le_mem l i h)
 
+@[simp] lemma sup_append : ∀ l₁ l₂ : list α, (l₁ ++ l₂).sup = l₁.sup ⊔ l₂.sup
+| []        l₂ := by simp
+| (a :: l₁) l₂ := by simp[sup_append l₁ l₂, sup_assoc]
+
 end sup
 
 section inf
@@ -90,9 +94,9 @@ lemma inf_le_of_mem : ∀ {l : list α} {x}, x ∈ l → l.inf ≤ x
 @[simp] lemma nth_le_le_inf {l : list α} {i} {h} : l.inf ≤ l.nth_le i h :=
 inf_le_of_mem (nth_le_mem l i h)
 
-@[simp] lemma append_inf : ∀ l₁ l₂ : list α, (l₁ ++ l₂).inf = l₁.inf ⊓ l₂.inf
+@[simp] lemma inf_append : ∀ l₁ l₂ : list α, (l₁ ++ l₂).inf = l₁.inf ⊓ l₂.inf
 | []        l₂ := by simp
-| (a :: l₁) l₂ := by simp[append_inf l₁ l₂, inf_assoc]
+| (a :: l₁) l₂ := by simp[inf_append l₁ l₂, inf_assoc]
 
 end inf
 
@@ -208,8 +212,25 @@ end append'
 section sup
 variables [linear_order α] [order_bot α]
 
-@[simp] lemma nth_le_le_sup {n} {v : vector α n} {i} : v.nth i ≤ v.to_list.sup :=
+def sup {n} (v : vector α n) := v.to_list.sup
+
+@[simp] lemma nth_le_le_sup {n} {v : vector α n} {i} : v.nth i ≤ v.sup :=
 list.le_sup_of_mem (by { rw nth_eq_nth_le, exact list.nth_le_mem _ _ _ })
+
+@[simp] lemma zero_sup : ∀ (v : vector α 0), v.sup = ⊥
+| ⟨[], _⟩ := by simp[sup]
+
+@[simp] lemma one_sip : ∀ (v : vector α 1), v.sup = v.head
+| ⟨[a], _⟩ := by simp[sup]
+
+@[simp] lemma two_sup : ∀ (v : vector α 2), v.sup = v.head ⊔ v.nth 1
+| ⟨[a, b], _⟩ := by simp[sup, head, nth]
+
+@[simp] lemma succ_sup (a : α) {n} (v : vector α n) : (a ::ᵥ v).sup = a ⊔ v.sup :=
+by simp[sup]
+
+@[simp] lemma sup_append {n m} (v : vector α n) (w : vector α m) : (v ++ᵥ w).sup = v.sup ⊔ w.sup :=
+by rcases v; rcases w; simp[sup]
 
 end sup
 
@@ -234,7 +255,7 @@ list.inf_le_of_mem (by { rw nth_eq_nth_le, exact list.nth_le_mem _ _ _ })
 by simp[inf]
 
 @[simp] lemma inf_append {n m} (v : vector α n) (w : vector α m) : (v ++ᵥ w).inf = v.inf ⊓ w.inf :=
-by rcases v; rcases w; simp[append, inf]
+by rcases v; rcases w; simp[inf]
 
 end inf
 
@@ -459,8 +480,13 @@ end set
 
 namespace nat
 
-@[simp] lemma bit_ff_two_mul (n : ℕ) : bit ff n = 2 * n := bit0_eq_two_mul n
+lemma bit_ff (n : ℕ) : bit ff n = 2 * n := bit0_eq_two_mul n
 
-@[simp] lemma bit_tt_two_mul_add_one (n : ℕ) : bit tt n = 2 * n + 1 := by simpa[bit, bit1] using bit0_eq_two_mul n
+lemma bit_tt (n : ℕ) : bit tt n = 2 * n + 1 := by simpa[bit, bit1] using bit0_eq_two_mul n
+
+attribute [simp] div2_bit
+
+@[simp] lemma bit_div2 : ∀ n : ℕ, bit n.bodd n.div2 = n :=
+binary_rec (by simp[bit_ff]) (λ b n IH, by simp[bodd_bit, div2_bit])
 
 end nat
