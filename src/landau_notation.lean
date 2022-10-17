@@ -1,4 +1,4 @@
-import vorspiel init.algebra.order
+import vorspiel binary_recursion init.algebra.order tactic.omega.main
 
 universes u v
 
@@ -168,10 +168,16 @@ lemma of_add_of : O[f + g] = O[f] + O[g] := by refl
 
 lemma of_mul_of : O[f * g] = O[f] * O[g] := by refl
 
+variables {f g}
+
 lemma of_le_of : O[f] ≤ O[g] ↔ f ≤ᴼ g := by simp[(≤), preorder.le, partial_order.le]
+
+variables (f g)
 
 @[simp] lemma smul_eq {c} (h : c ≠ 0) : O[c • f] = O[f] :=
 of_eq_of.mpr ⟨⟨c, h, 0, by simp⟩, by { refine ⟨1, by simp, 0, λ m _, by { simp; exact nat.le_mul_of_pos_left (pos_iff_ne_zero.mpr h) }⟩ }⟩ 
+
+
 
 variables {f g}
 
@@ -201,6 +207,13 @@ lemma zero_def : 0 = O[0] := rfl
 instance : order_bot quo := ⟨0, λ q, by { induction q using landau_notation.bigΘ.ind_on with f, simp[zero_def, of_le_of] }⟩
 
 lemma bot_eq_zero : (⊥ : quo) = 0 := rfl
+
+variables (f)
+
+@[simp] lemma smul_le {c : ℕ} : O[c • f] ≤ O[f] :=
+by { by_cases C : c = 0, { simp[C, ←zero_def, ←bot_eq_zero] }, { simp[smul_eq f C] } }
+
+variables {f}
 
 lemma eq_zero : O[f] = 0 ↔ Eventually n, f n = 0 :=
 by { simp [zero_def, of_eq_of, (≃Θ)], split,
@@ -233,9 +246,9 @@ by { simp[one_def, of_le_of], split,
 lemma eq_one_of : O[f] = 1 ↔ (∃ M, ∀ n, f n ≤ M) ∧ (Eventually n, f n ≠ 0) :=
 by rw[le_antisymm_iff, le_one_iff, one_le_iff] 
 
-@[simp] lemma const_eq_one {c : ℕ} (h : c ≠ 0) : O[c] = 1 := by simp[eq_one_of, h]; refine ⟨c, by refl⟩
+@[simp] lemma const_eq_one {c : ℕ} (h : c ≠ 0) : O[λ _, c] = 1 := by simp[eq_one_of, h]; refine ⟨c, by refl⟩
 
-abbreviation log : quo := O[nat.log 2]
+protected abbreviation Log : quo := O[Log]
 
 abbreviation poly (n : ℕ) : quo := O[λ x, x^n]
 
@@ -243,22 +256,20 @@ abbreviation exp : quo := O[λ x, 2^x]
 
 @[simp] lemma poly0 : poly 0 = 1 := by refl
 
+@[simp] lemma poly1 : O[id] = poly 1 := of_eq (funext $ by simp)
+
 @[simp] lemma poly_le_of_le {n m} (h : n ≤ m) : poly n ≤ poly m :=
 by simp[of_le_of]; refine ⟨1, by simp, 1, λ x hx, by simpa using pow_mono hx h⟩
 
 @[simp] lemma one_le_poly {n} : 1 ≤ poly n := by rw ←poly0; exact poly_le_of_le (by simp)
 
-@[simp] lemma one_le_log : 1 ≤ log :=
-by { simp[one_def, of_le_of], refine ⟨1, by simp, 2, λ m hm, _⟩,
-     rw[show nat.log 2 m = _ + 1, from @nat.log_of_one_lt_of_le 2 m (by simp) hm], simp }
+@[simp] lemma one_le_log : 1 ≤ bigΘ.Log :=
+by { simp[one_def, of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩, simp, simpa using Log_monotone hm }
 
-@[simp] lemma log_le_poly1 : log ≤ poly 1 :=
-by { simp[of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩,
-     have : m < 2^m ↔ nat.log 2 m < m, from nat.lt_pow_iff_log_lt (by simp) (nat.succ_le_iff.mp hm),
-     simp, refine le_of_lt (this.mp _),
-     exact nat.lt_two_pow m }
+@[simp] lemma log_le_poly1 : bigΘ.Log ≤ poly 1 :=
+by { simp[of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩, simp,  sorry }
 
-@[simp] lemma log_le_poly {n} (h : n ≠ 0) : log ≤ poly n :=
+@[simp] lemma log_le_poly {n} (h : n ≠ 0) : bigΘ.Log ≤ poly n :=
 log_le_poly1.trans (poly_le_of_le (nat.one_le_iff_ne_zero.mpr h))
 
 @[simp] lemma poly_mul (m n : ℕ) : poly n * poly m = poly (n + m) :=
@@ -267,12 +278,75 @@ by { rw ←of_mul_of, refine of_eq (funext $ λ x, _), simp[pow_add] }
 @[simp] lemma lambda_add : O[λ x, f x + g x] = O[f] + O[g] := (of_add_of f g).symm
 
 @[simp] lemma lambda_add_const {c : ℕ} (h : c ≠ 0) : O[λ x, f x + c] = O[f] + 1 :=
-by { show O[f + c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
+by { show O[f + λ _, c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
 
 @[simp] lemma lambda_smul {c : ℕ} (h : c ≠ 0) : O[λ x, c * f x] = O[f] := smul_eq f h
 
-example : O[λ x, 3 * x^9 + 12 * x^4 + 23 * nat.log 2 x + 17] = poly 9 := by simp
+@[simp] lemma lambda_le_smul {c : ℕ} : O[λ x, c * f x] ≤ O[f] := smul_le f
+
+@[simp] lemma lambda_smul_poly1 {c : ℕ} (h : c ≠ 0) : O[(*) c] = poly 1 :=
+by simpa[show c • id = (*) c, from funext (by simp)] using smul_eq id h
+
+@[simp] lemma lambda_smul_le_poly1 {c : ℕ} : O[(*) c] ≤ poly 1 :=
+by simpa[show c • id = (*) c, from funext (by simp)] using smul_le id
+
+example : O[λ x, 3 * x^9 + 12 * x^4 + 17 * x] = poly 9 := by simp
 
 end bigΘ
+
+
+section
+open nat
+variables (f : ℕ → ℕ)
+
+lemma le_poly1_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ 2 * f n + c) : O[f] ≤ bigΘ.poly 1 :=
+begin
+  have : f ≤ᴼ (λ n, (f 1 + c)*n),
+  { have : ∀ n, n ≠ 0 → f n ≤ (f 1 + c) * n - c,
+    from binary_recursion_nonzero
+      (by simp[add_mul]; rw [mul_one, mul_one, tsub_eq_of_eq_add]; refl)
+      (λ b n hn IH, by { 
+        have : c ≤ 2 * (f 1 + c) * n - c,
+          calc c = 2 * c - c
+          : by rw[two_mul]; simp
+             ... ≤ 2 * ((f 1 + c) * n) - c
+          : tsub_le_tsub_right (by simp[hn]; refine le_mul_of_le_of_one_le (by simp) (one_le_iff_ne_zero.mpr hn)) c
+             ... ≤ 2 * (f 1 + c) * n - c
+          : by rw[mul_assoc],
+        calc
+          f (bit b n) ≤ 2 * f n + c                   : h b n
+                  ... ≤ 2 * ((f 1 + c) * n - c) + c   : by simpa using IH
+                  ... = 2 * (f 1 + c) * n - 2 * c + c : by simp[nat.mul_sub_left_distrib, mul_assoc]
+                  ... = 2 * (f 1 + c) * n - c - c + c : by rw[two_mul c, tsub_add_eq_tsub_tsub]
+                  ... = 2 * (f 1 + c) * n - c         : by rw nat.sub_add_cancel this
+                  ... = (f 1 + c) * (2 * n) - c       : by rw[mul_comm 2 (f 1 + c), mul_assoc]
+                  ... ≤ (f 1 + c) * bit b n - c       : tsub_le_tsub_right (mul_le_mul_left' (by simp[bit_val]) _) c }),
+    refine ⟨1, by simp, 1,
+      λ n hn, by simp; refine le_trans (this n (one_le_iff_ne_zero.mp hn)) (nat.sub_le _ _)⟩ },
+  refine (bigΘ.of_le_of.mpr this).trans (by simp)
+end
+
+
+#check le_poly1_of_binary_rec
+
+lemma le_Log_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ f n + c) : O[f] ≤ bigΘ.Log :=
+begin
+  have : f ≤ᴼ (λ n, c * Log n + f 0),
+  from ⟨1, by simp, 0, by { simp,
+  refine nat.binary_rec (by simp)
+    (λ b n IH, by { 
+      by_cases C : bit b n = 0, { simp[C] },
+      calc
+        f (bit b n) ≤ f n + c                 : h b n
+                ... ≤ c * Log n + f 0 + c     : by simpa using IH
+                ... = c * (Log n + 1) + f 0   : by ring
+                ... = c * Log (bit b n) + f 0 : by simp[Log_bit C] }) }⟩,
+  have := bigΘ.of_le_of.mpr this,
+  simp at this,
+  sorry
+end
+
+
+end
 
 end landau_notation
