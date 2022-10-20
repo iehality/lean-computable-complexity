@@ -90,6 +90,9 @@ calc
   Log n = Log (bit n.bodd n.div2) : by simp
     ... = Log n.div2 + 1          : by rw Log_bit; simp[h]
 
+lemma Log_two_mul {n} (h : n ≠ 0) : Log (2 * n) = Log n + 1 :=
+by { rw @div2_Log (2 * n) (by simpa using h), simp[nat.div2_val] }
+
 @[simp] lemma Log_one : Log 1 = 1 := by simp[div2_Log]
 
 @[simp] lemma Log_two : Log 2 = 2 := by simp[div2_Log]
@@ -116,7 +119,17 @@ lemma Log_monotone : monotone Log :=
     { simp[hn] },
     { simp[Log_eq_log, hn, hm], exact log_monotone h } } }
 
-lemma pow_Log_le_poly1 : ∀ {n}, n ≠ 0 → 2^Log n ≤ 2 * n :=
+lemma linear_le_pow_Log : ∀ n, n + 1 ≤ 2^Log n :=
+binary_rec (by simp)
+  (λ b n IH, by { 
+    by_cases C : bit b n = 0,
+    { simp[C] },
+    { calc
+        bit b n + 1 ≤ 2 * (n + 1)     : by rcases b; simp[mul_add, nat.bit_val, add_assoc]
+                ... ≤ 2* (2^Log n)    : by simpa using IH
+                ... ≤ 2^Log (bit b n) : by simp[Log_bit C, pow_add, mul_comm] } })
+
+lemma pow_Log_le_linear : ∀ {n}, n ≠ 0 → 2^Log n ≤ 2 * n :=
 binary_recursion_nonzero (by simp)
   (λ b n nonzero IH, by { 
     have : bit b n ≠ 0, by simp[bit_eq_zero_iff, nonzero],
@@ -125,5 +138,49 @@ binary_recursion_nonzero (by simp)
                     ... ≤ 2 * (2 * n) : by simpa using IH
                     ... ≤ 2 * bit b n : by simp[bit_val] })
 
-@[simp] lemma pow_Log_le_poly1' (n) : 2^Log n ≤ 2 * n + 1 :=
-by { by_cases n = 0, { simp[h] }, { exact le_add_right (pow_Log_le_poly1 h)} }
+@[simp] lemma pow_Log_le_linear' (n) : 2^Log n ≤ 2 * n + 1 :=
+by { by_cases n = 0, { simp[h] }, { exact le_add_right (pow_Log_le_linear h)} }
+
+@[simp] lemma Log_le_linear : ∀ n, Log n ≤ n :=
+binary_rec (by simp)
+(λ b n IH, by { by_cases h : bit b n = 0,
+  { simp[h] },
+  { calc
+      Log (bit b n) = Log n + 1 : Log_bit h
+                ... ≤ n + 1     : by simp[IH]
+                ... ≤ bit b n
+      : by { rcases b; simp[bit_ff, bit_tt, two_mul] at h ⊢, { exact one_le_iff_ne_zero.mpr h } } } })
+
+@[simp] lemma Log_pow (n) : Log (2^n) = n + 1 :=
+by { induction n with n IH, { simp },
+     { have : 2 ^ n ≠ 0, by { exact ne_zero.ne (2 ^ n) }, 
+      simp[pow_succ, Log_two_mul this, IH] } }
+
+lemma Log_pow_le_linear_aux {k : ℕ} (hk : k ≠ 0) :
+  ∀ {n}, n ≠ 0 → k.pow_le_two_mul_pow_of_le_bound ≤ Log n → (Log n)^k ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k * n :=
+binary_recursion_nonzero (λ h, by { simp; refine nat.one_le_pow _ _ (by simp) })
+  (λ b n nonzero IH hn, by { 
+    by_cases C₁ : bit b n = 0,
+    { simp[C₁, hk], },
+    have : Log n ≤ k.pow_le_two_mul_pow_of_le_bound ∨ k.pow_le_two_mul_pow_of_le_bound ≤ Log n, from le_total _ _,
+    rcases this with (le|le),
+    { calc
+        Log (bit b n)^k = (Log n + 1)^k                                      : by rw[Log_bit C₁] 
+                    ... ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k           : pow_le_pow_of_le_left (by simp) (by simpa using le) _
+                    ... ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k * bit b n : nat.le_mul_of_pos_right (zero_lt_iff.mpr C₁) },
+    { calc
+        Log (bit b n)^k = (Log n + 1)^k                                      : by rw[Log_bit C₁]
+                    ... ≤ 2 * (Log n)^k                                      : pow_le_two_mul_pow_of_le hk le
+                    ... ≤ 2 * (k.pow_le_two_mul_pow_of_le_bound + 1)^k * n   : by simpa[mul_assoc] using IH le
+                    ... ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k * bit b n : by rw[mul_comm 2]; simp[mul_assoc, bit_val] } })
+
+lemma Log_pow_le_linear (k : ℕ) :
+  ∀ n ≥ 2^k.pow_le_two_mul_pow_of_le_bound, (Log n)^k ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k * n :=
+begin
+  by_cases C₁ : k = 0,
+  { intros n hn, simp[C₁], refine le_trans (one_le_pow' _ 1) hn  },
+  { intros n hn,
+    by_cases C₂ : n = 0,
+    { simp[C₂], exact zero_lt_iff.mpr C₁ },
+    { exact Log_pow_le_linear_aux C₁ C₂ (le_of_succ_le (by simpa using Log_monotone hn)) } }
+end

@@ -89,6 +89,12 @@ def bigO_class (f : ℕ → ℕ) : quo := quotient.mk' f
 
 notation `O[` f `]` := bigO_class f
 
+def log := O[Log]
+
+def linear := O[id]
+
+def exp := O[(^) 2]
+
 @[elab_as_eliminator]
 protected lemma ind_on {C : quo → Prop} (q : quo) (h : ∀ f, C O[f]) : C q := quotient.induction_on' q h
 
@@ -115,6 +121,8 @@ by { induction n with n IH,
      have : n' < n ∨ n' = n, from nat.lt_succ_iff_lt_or_eq.mp hn',
      rcases this with (hn' | rfl),
      { simp[IH n' hn'] }, { simp } } }
+
+section arith
 
 instance : has_add quo :=
 ⟨λ q₁ q₂, bigΘ.lift_on₂ q₁ q₂ (λ f g, O[f + g])
@@ -148,6 +156,91 @@ instance : has_mul quo :=
           calc g₁ m * g₂ m ≤ (c₁ * f₁ m) * (c₂ * f₂ m) : nat.mul_le_mul (h₁ m hm₁) (h₂ m hm₂)
                        ... = c₁ * c₂ * (f₁ m * f₂ m)   : by ring } })⟩
 
+variables (f g)
+
+lemma of_add_of : O[f + g] = O[f] + O[g] := by refl
+
+lemma of_mul_of : O[f * g] = O[f] * O[g] := by refl
+
+@[simp] lemma smul_eq {c} (h : c ≠ 0) : O[c • f] = O[f] :=
+of_eq_of.mpr ⟨⟨c, h, 0, by simp⟩, by { refine ⟨1, by simp, 0, λ m _, by { simp; exact nat.le_mul_of_pos_left (pos_iff_ne_zero.mpr h) }⟩ }⟩ 
+
+variables {f g}
+
+instance : add_comm_monoid quo :=
+{ add_assoc := λ q₁ q₂ q₃,
+  by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    induction q₃ using landau_notation.bigΘ.ind_on with h,
+    simp[←of_add_of, add_assoc] },
+  zero := O[0],
+  zero_add := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[←of_add_of] },
+  add_zero := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[←of_add_of] },
+  add_comm := λ q₁ q₂, by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    simp[←of_add_of, add_comm] },
+  ..quo.has_add }
+
+lemma zero_def : 0 = O[0] := rfl
+
+instance : comm_monoid quo :=
+{ mul_assoc := λ q₁ q₂ q₃,
+  by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    induction q₃ using landau_notation.bigΘ.ind_on with h,
+    simp[←of_mul_of, mul_assoc] },
+  one := O[1],
+  one_mul := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[←of_mul_of] },
+  mul_one := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[←of_mul_of] },
+  mul_comm := λ q₁ q₂, by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    simp[←of_mul_of, mul_comm] },
+  ..quo.has_mul }
+
+instance : monoid_with_zero quo :=
+{ zero_mul := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[show add_comm_monoid.zero = O[0], by refl], unfold comm_monoid.mul,
+    simp[←of_mul_of] },
+  mul_zero := λ q, by { 
+    induction q using landau_notation.bigΘ.ind_on with f,
+    simp[show add_comm_monoid.zero = O[0], by refl], unfold comm_monoid.mul,
+    simp[←of_mul_of] },
+  .. quo.add_comm_monoid, ..quo.comm_monoid }
+
+lemma one_def : 1 = O[1] := rfl
+
+instance : distrib quo :=
+{ left_distrib := λ q₁ q₂ q₃, by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    induction q₃ using landau_notation.bigΘ.ind_on with h,
+    simp[←of_add_of, ←of_mul_of],
+    refine of_eq (funext $ λ x, by simp[mul_add]) },
+  right_distrib := λ q₁ q₂ q₃, by { 
+    induction q₁ using landau_notation.bigΘ.ind_on with f,
+    induction q₂ using landau_notation.bigΘ.ind_on with g,
+    induction q₃ using landau_notation.bigΘ.ind_on with h,
+    simp[←of_add_of, ←of_mul_of],
+    refine of_eq (funext $ λ x, by simp[add_mul]) },
+  ..quo.has_add, ..quo.has_mul }
+
+end arith
+
+section order
+
 instance : partial_order quo :=
 { le := λ q₁ q₂, bigΘ.lift_on₂ q₁ q₂ (λ f g, f ≤ᴼ g)
     (by { rintros f₁ f₂ g₁ g₂ ⟨hfg₁, hgf₁⟩ ⟨hfg₂, hgf₂⟩, simp,
@@ -162,66 +255,49 @@ instance : partial_order quo :=
          induction q₂ using landau_notation.bigΘ.ind_on with g, simp[has_le.le, preorder.le, of_eq_of],
          intros h₁ h₂, refine ⟨h₁, h₂⟩ } }
 
-variables (f g)
-
-lemma of_add_of : O[f + g] = O[f] + O[g] := by refl
-
-lemma of_mul_of : O[f * g] = O[f] * O[g] := by refl
-
-variables {f g}
-
 lemma of_le_of : O[f] ≤ O[g] ↔ f ≤ᴼ g := by simp[(≤), preorder.le, partial_order.le]
 
-variables (f g)
+instance : semilattice_sup quo :=
+{ sup := (+),
+  le_sup_left := λ q₁ q₂,
+    by{ induction q₁ using landau_notation.bigΘ.ind_on with f,
+        induction q₂ using landau_notation.bigΘ.ind_on with g,
+        simp[←of_add_of, of_eq_of, of_le_of],
+        refine ⟨1, by simp, 0, λ m _, by simp⟩ },
+  le_sup_right := λ q₁ q₂,
+    by{ induction q₁ using landau_notation.bigΘ.ind_on with f,
+        induction q₂ using landau_notation.bigΘ.ind_on with g,
+        simp[←of_add_of, of_eq_of, of_le_of],
+        refine ⟨1, by simp, 0, λ m _, by simp⟩ },
+  sup_le := λ q₁ q₂ q₃,
+    by{ induction q₁ using landau_notation.bigΘ.ind_on with f,
+        induction q₂ using landau_notation.bigΘ.ind_on with g,
+        induction q₃ using landau_notation.bigΘ.ind_on with h,
+        simp[←of_add_of, of_le_of],
+        rintros ⟨c₁, hc₁, m₁, h₁⟩ ⟨c₂, hc₂, m₂, h₂⟩,
+        refine ⟨c₁ + c₂, by simp[hc₁, hc₂], max m₁ m₂,
+          by{ simp, intros m le₁ le₂,
+              calc f m + g m ≤ c₁ * h m + c₂ * h m : add_le_add (h₁ m le₁) (h₂ m le₂)
+                         ... = (c₁ + c₂) * h m     : by simp[add_mul] }⟩ },
+  .. quo.partial_order }
 
-@[simp] lemma smul_eq {c} (h : c ≠ 0) : O[c • f] = O[f] :=
-of_eq_of.mpr ⟨⟨c, h, 0, by simp⟩, by { refine ⟨1, by simp, 0, λ m _, by { simp; exact nat.le_mul_of_pos_left (pos_iff_ne_zero.mpr h) }⟩ }⟩ 
-
-
-
-variables {f g}
-
-lemma add_symm (q₁ q₂ : quo) : q₁ + q₂ = q₂ + q₁ :=
-by{ induction q₁ using landau_notation.bigΘ.ind_on with f,
-    induction q₂ using landau_notation.bigΘ.ind_on with g,
-    simp[←of_add_of], refine of_eq (add_comm f g) }
-
-@[simp] lemma add_eq_of_le {q₁ q₂ : quo} (h : q₂ ≤ q₁) : q₁ + q₂ = q₁ :=
-begin
-  induction q₁ using landau_notation.bigΘ.ind_on with f,
-  induction q₂ using landau_notation.bigΘ.ind_on with g,
-  simp[←of_add_of, of_eq_of, of_le_of] at h ⊢,
-  rcases h with ⟨c, hc, n, h⟩, simp at h, 
-  split,
-  { refine ⟨1 + c, by simp, n, λ m hm, _⟩, simp[two_mul, add_mul], exact h m hm },
-  { refine ⟨1, by simp, 0, λ _, by simp⟩ }
-end
-
-@[simp] lemma add_eq_of_le' {q₁ q₂ : quo} (h : q₁ ≤ q₂) : q₁ + q₂ = q₂ :=
-by { rw add_symm, refine add_eq_of_le h }
-
-instance : has_zero quo := ⟨O[0]⟩
-
-lemma zero_def : 0 = O[0] := rfl
+lemma sup_def {q₁ q₂ : quo} : q₁ ⊔ q₂ = q₁ + q₂ := rfl
 
 instance : order_bot quo := ⟨0, λ q, by { induction q using landau_notation.bigΘ.ind_on with f, simp[zero_def, of_le_of] }⟩
 
-lemma bot_eq_zero : (⊥ : quo) = 0 := rfl
+lemma bot_def : (⊥ : quo) = 0 := rfl
 
-variables (f)
+@[simp] lemma smul_le {c : ℕ} (f) : O[c • f] ≤ O[f] :=
+by { by_cases C : c = 0, { simp[C, ←zero_def, ←bot_def] }, { rw[smul_eq f C] } }
 
-@[simp] lemma smul_le {c : ℕ} : O[c • f] ≤ O[f] :=
-by { by_cases C : c = 0, { simp[C, ←zero_def, ←bot_eq_zero] }, { simp[smul_eq f C] } }
+end order
 
+section const
 variables {f}
 
 lemma eq_zero : O[f] = 0 ↔ Eventually n, f n = 0 :=
 by { simp [zero_def, of_eq_of, (≃Θ)], split,
      { rintros ⟨c, hc, h⟩, simpa using h }, { intros h, refine ⟨1, by simp, by simpa using h⟩ } }
-
-instance : has_one quo := ⟨O[1]⟩
-
-lemma one_def : 1 = O[1] := rfl
 
 lemma le_one_iff : O[f] ≤ 1 ↔ ∃ M, ∀ n, f n ≤ M :=
 begin 
@@ -248,32 +324,69 @@ by rw[le_antisymm_iff, le_one_iff, one_le_iff]
 
 @[simp] lemma const_eq_one {c : ℕ} (h : c ≠ 0) : O[λ _, c] = 1 := by simp[eq_one_of, h]; refine ⟨c, by refl⟩
 
-protected abbreviation Log : quo := O[Log]
+end const
 
-abbreviation poly (n : ℕ) : quo := O[λ x, x^n]
+section pow
 
-abbreviation exp : quo := O[λ x, 2^x]
+lemma pow_eq (n : ℕ) (f) : O[f]^n = O[f^n] :=
+begin
+  induction n with n IH,
+  { simp[one_def] },
+  { calc
+      O[f] ^ n.succ = O[f] * O[f^n] : by simp[pow_succ, IH]
+                ... = O[f ^ n.succ] : by simp[pow_succ, of_mul_of] }
+end
 
-@[simp] lemma poly0 : poly 0 = 1 := by refl
+lemma poly_mono {n m : ℕ} (h : n ≤ m) : linear^n ≤ linear^m :=
+by{ simp[linear, pow_eq, of_le_of], refine ⟨1, by simp, 1, λ x hx, by { simp, refine pow_mono hx h}⟩ }
 
-@[simp] lemma poly1 : O[id] = poly 1 := of_eq (funext $ by simp)
+lemma log_mono {n m : ℕ} (h : n ≤ m) : log^n ≤ log^m :=
+by{ simp[log, pow_eq, of_le_of],
+    refine ⟨1, by simp, 1, λ x hx, by { simp, refine pow_mono (by simpa using Log_monotone hx) h}⟩ }
 
-@[simp] lemma poly_le_of_le {n m} (h : n ≤ m) : poly n ≤ poly m :=
-by simp[of_le_of]; refine ⟨1, by simp, 1, λ x hx, by simpa using pow_mono hx h⟩
+end pow
 
-@[simp] lemma one_le_poly {n} : 1 ≤ poly n := by rw ←poly0; exact poly_le_of_le (by simp)
+section Log
+variables {f}
 
-@[simp] lemma one_le_log : 1 ≤ bigΘ.Log :=
-by { simp[one_def, of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩, simp, simpa using Log_monotone hm }
+@[simp] lemma zero_le (q : quo) : 0 ≤ q := by simp[←bot_def]
 
-@[simp] lemma log_le_poly1 : bigΘ.Log ≤ poly 1 :=
-by { simp[of_le_of], refine ⟨1, by simp, 1, λ m hm, _⟩, simp,  sorry }
+@[simp] lemma one_le_Log : 1 ≤ log :=
+by { simp[log, one_def, of_le_of], refine ⟨1, by simp, 1, λ m hm, by simpa using Log_monotone hm⟩ }
 
-@[simp] lemma log_le_poly {n} (h : n ≠ 0) : bigΘ.Log ≤ poly n :=
-log_le_poly1.trans (poly_le_of_le (nat.one_le_iff_ne_zero.mpr h))
+lemma log_le_of_le {n m : ℕ} (h : n ≤ m) : log^n ≤ log^m :=
+by { simp[log, pow_eq, of_le_of], refine ⟨1, by simp, 1, λ x hx, by { simp, exact pow_mono (by simpa using Log_monotone hx) h}⟩ }
 
-@[simp] lemma poly_mul (m n : ℕ) : poly n * poly m = poly (n + m) :=
-by { rw ←of_mul_of, refine of_eq (funext $ λ x, _), simp[pow_add] }
+end Log
+
+section linear
+variables {f}
+
+lemma linear_le_of_le {n m : ℕ} (h : n ≤ m) : linear^n ≤ linear^m :=
+by { simp[linear, pow_eq, of_le_of], refine ⟨1, by simp, 1, λ x hx, by { simp, exact pow_mono hx h}⟩ }
+
+@[simp] lemma log_le_linear : log ≤ linear :=
+by { simp[linear, one_def, of_le_of], refine ⟨1, by simp, 1, by simp⟩ }
+
+@[simp] lemma log_poly_le_linear (k : ℕ) : log^k ≤ linear :=
+by { simp[log, pow_eq, linear, one_def, of_le_of],
+     refine ⟨(k.pow_le_two_mul_pow_of_le_bound + 1)^k, by { simp,
+     suffices : 1 ≤ (k.pow_le_two_mul_pow_of_le_bound + 1)^k, exact ne_zero.ne _,
+     refine nat.one_le_pow' _ _ }, 2^k.pow_le_two_mul_pow_of_le_bound, _⟩, 
+     simpa using Log_pow_le_linear k }
+
+end linear
+
+section exp
+variables {f}
+
+@[simp] lemma linear_le_exp : linear ≤ exp :=
+by { simp[linear, exp, of_le_of], refine ⟨1, by simp, 0, _⟩, simp, sorry }
+
+end exp
+
+section lambda
+
 
 @[simp] lemma lambda_add : O[λ x, f x + g x] = O[f] + O[g] := (of_add_of f g).symm
 
@@ -284,13 +397,13 @@ by { show O[f + λ _, c] = O[f] + 1, rw [of_add_of, const_eq_one h] }
 
 @[simp] lemma lambda_le_smul {c : ℕ} : O[λ x, c * f x] ≤ O[f] := smul_le f
 
-@[simp] lemma lambda_smul_poly1 {c : ℕ} (h : c ≠ 0) : O[(*) c] = poly 1 :=
+@[simp] lemma lambda_smul_poly1 {c : ℕ} (h : c ≠ 0) : O[(*) c] = linear :=
 by simpa[show c • id = (*) c, from funext (by simp)] using smul_eq id h
 
-@[simp] lemma lambda_smul_le_poly1 {c : ℕ} : O[(*) c] ≤ poly 1 :=
+@[simp] lemma lambda_smul_le_poly1 {c : ℕ} : O[(*) c] ≤ linear :=
 by simpa[show c • id = (*) c, from funext (by simp)] using smul_le id
 
-example : O[λ x, 3 * x^9 + 12 * x^4 + 17 * x] = poly 9 := by simp
+end lambda
 
 end bigΘ
 
@@ -299,7 +412,7 @@ section
 open nat
 variables (f : ℕ → ℕ)
 
-lemma le_poly1_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ 2 * f n + c) : O[f] ≤ bigΘ.poly 1 :=
+lemma le_poly1_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ 2 * f n + c) : O[f] ≤ bigΘ.linear :=
 begin
   have : f ≤ᴼ (λ n, (f 1 + c)*n),
   { have : ∀ n, n ≠ 0 → f n ≤ (f 1 + c) * n - c,
@@ -327,9 +440,7 @@ begin
 end
 
 
-#check le_poly1_of_binary_rec
-
-lemma le_Log_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ f n + c) : O[f] ≤ bigΘ.Log :=
+lemma le_Log_of_binary_rec (c : ℕ) (h : ∀ b n, f (bit b n) ≤ f n + c) : O[f] ≤ bigΘ.log :=
 begin
   have : f ≤ᴼ (λ n, c * Log n + f 0),
   from ⟨1, by simp, 0, by { simp,
@@ -345,7 +456,6 @@ begin
   simp at this,
   sorry
 end
-
 
 end
 

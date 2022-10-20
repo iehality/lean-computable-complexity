@@ -6,6 +6,10 @@ import
   init.data.nat.basic
   init.data.nat.div
   data.fintype.card
+  data.real.basic
+  data.real.sqrt
+  algebra.order.field
+  analysis.special_functions.pow
 
 universes u v
 
@@ -488,5 +492,26 @@ attribute [simp] div2_bit
 
 @[simp] lemma bit_div2 : ∀ n : ℕ, bit n.bodd n.div2 = n :=
 binary_rec (by simp[bit_ff]) (λ b n IH, by simp[bodd_bit, div2_bit])
+
+noncomputable def of_real (f : ℝ → ℝ → ℝ) (r : ℝ) (n : ℕ) : ℕ := floor (f r n)
+
+noncomputable def pow_le_two_mul_pow_of_le_bound (k : ℕ) : ℕ := ⌈(1 / (2^(k : ℝ)⁻¹ - 1) : ℝ)⌉₊
+
+lemma pow_le_two_mul_pow_of_le {m : ℕ} (hm : m ≠ 0) {n : ℕ} (h : pow_le_two_mul_pow_of_le_bound m ≤ n) : (n + 1)^m ≤ 2 * n^m :=
+begin
+  have : (1 / (2^(m : ℝ)⁻¹ - 1) : ℝ) ≤ n, from ceil_le.mp h,
+  have : 1 ≤ (n : ℝ) * (2^(m : ℝ)⁻¹ - 1),
+    from (div_le_iff (by simp; refine real.one_lt_rpow one_lt_two (by simpa using zero_lt_iff.mpr hm))).mp this,
+  have : ((n + 1 : ℕ) : ℝ) ≤ (n : ℝ) * 2^(m : ℝ)⁻¹, { simp [mul_sub, cast_succ] at this ⊢, exact le_sub_iff_add_le'.mp this },
+  have : ((n + 1 : ℕ) : ℝ)^(m : ℝ) ≤ ((n : ℝ) * 2^(m : ℝ)⁻¹)^(m : ℝ), from real.rpow_le_rpow (n + 1).cast_nonneg this m.cast_nonneg,
+  have : (↑((n + 1)^m) : ℝ) ≤ (↑(2 * n^m) : ℝ), 
+  calc
+    (↑((n + 1)^m) : ℝ) = ((n + 1 : ℕ) : ℝ)^(m : ℝ) : by simp
+                    ... ≤ ((n : ℝ) * 2^(m : ℝ)⁻¹)^(m : ℝ) : this
+                    ... = ((n : ℝ)^(m : ℝ) * 2^((m : ℝ)⁻¹ * (m : ℝ))) : by rw [real.rpow_mul zero_le_two]; simp[mul_pow]
+                    ... = ((n : ℝ)^(m : ℝ) * 2) : by rw [inv_mul_cancel, real.rpow_one]; exact cast_ne_zero.mpr hm
+                    ... = (↑(2 * n^m) : ℝ) : by simp[mul_comm],
+  refine nat.cast_le.mp this
+end
 
 end nat
